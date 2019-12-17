@@ -10,9 +10,21 @@
         android:id="@+id/bannerView"
         android:layout_width="match_parent"
         android:layout_height="200dp"
-        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/bannerIndicator"
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
+
+    <com.liang.banner.BannerIndicator
+        android:id="@+id/bannerIndicator"
+        android:layout_width="match_parent"
+        android:layout_height="100dp"
+        app:indicatorItemWidth="10dp"
+        app:indicatorItemHeight="5dp"
+        app:indicatorItemMargin="5dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/bannerView" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

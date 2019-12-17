@@ -1,23 +1,23 @@
 package com.liang.banner
 
-import android.annotation.SuppressLint
 import android.content.Context
+import android.os.Build
 import android.util.AttributeSet
-import android.view.LayoutInflater
-import android.view.View
-import android.view.ViewGroup
+import android.view.ViewTreeObserver
 import android.widget.FrameLayout
-import android.widget.TextView
+import androidx.annotation.RequiresApi
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.OnLifecycleEvent
 import androidx.recyclerview.widget.RecyclerView
 import androidx.viewpager2.widget.ViewPager2
+import com.liang.banner.adapter.BannerAdapter
 
 /**
  * BannerView
  */
+@RequiresApi(Build.VERSION_CODES.JELLY_BEAN)
 class BannerView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
@@ -26,26 +26,61 @@ class BannerView @JvmOverloads constructor(
     context,
     attrs,
     defStyle
-), LifecycleObserver {
+), LifecycleObserver, ViewTreeObserver.OnGlobalLayoutListener {
 
-    private val defaultInterval = 5000L
-
+    private val indicators = arrayListOf<Indicator>()
+    private val defaultInterval = 5000
     private var lifecycle: Lifecycle? = null
-    private var direction = BannerViewPager.RIGHT
+    private var direction = 0
+
+    var interval = 0L
+    var isRunning = false
+
+    var adapter: BannerAdapter<*, *>? = null
+        set(value) {
+            value?.let {
+                field = it
+                viewPager.viewTreeObserver.addOnGlobalLayoutListener(this)
+                viewPager.adapter = field
+                it.registerAdapterDataObserver(adapterDataObserver)
+            }
+        }
+
+
+    private val adapterDataObserver by lazy {
+        object : RecyclerView.AdapterDataObserver() {
+            override fun onChanged() {
+                adapter?.let {
+                    indicators.forEach { indicator ->
+                        indicator.initCount(it.getBannerCount())
+                    }
+                }
+            }
+        }
+    }
+
+    override fun onGlobalLayout() {
+        adapter?.let {
+            viewPager.setCurrentItem(it.itemCount / 2, false)
+        }
+        viewPager.viewTreeObserver.removeOnGlobalLayoutListener(this)
+    }
 
     private val runnable by lazy {
         Runnable {
             next()
-            start()
         }
     }
-
-    var interval = defaultInterval
 
     private val viewPager by lazy {
         ViewPager2(context, attrs, defStyle).apply {
             registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
                 override fun onPageScrollStateChanged(state: Int) {
+                    if (state == 0 && isRunning) {
+                        postDelayed(runnable, interval)
+                    } else {
+                        removeCallbacks(runnable)
+                    }
                 }
 
                 override fun onPageScrolled(
@@ -53,43 +88,28 @@ class BannerView @JvmOverloads constructor(
                     positionOffset: Float,
                     positionOffsetPixels: Int
                 ) {
+                    this@BannerView.adapter?.let {
+                        indicators.forEach { indicator ->
+                            indicator.onPageScrolled(
+                                position % it.getBannerCount(),
+                                positionOffset,
+                                positionOffsetPixels
+                            )
+                        }
+                    }
                 }
 
                 override fun onPageSelected(position: Int) {
+                    this@BannerView.adapter?.let {
+                        indicators.forEach { indicator ->
+                            indicator.onPageSelected(
+                                position % it.getBannerCount()
+                            )
+                        }
+                    }
                 }
             })
         }
-    }
-
-    private val adapter by lazy {
-        object : RecyclerView.Adapter<BannerHolder>() {
-            override fun onCreateViewHolder(
-                parent: ViewGroup,
-                viewType: Int
-            ): BannerHolder {
-                val view = LayoutInflater.from(parent.context)
-                    .inflate(R.layout.banner_item_view, parent, false)
-                return BannerHolder(view)
-            }
-
-            override fun getItemCount(): Int {
-                return if (banners.size > 1) Int.MAX_VALUE else banners.size
-            }
-
-            @SuppressLint("SetTextI18n")
-            override fun onBindViewHolder(holder: BannerHolder, position: Int) {
-                (holder.itemView as TextView).text =
-                    "holder: ${banners[position % banners.size]}"
-            }
-        }
-    }
-
-    private val banners = arrayListOf<Any>()
-
-    fun setData(list: ArrayList<Any>) {
-        banners.clear()
-        banners.addAll(list)
-        adapter.notifyDataSetChanged()
     }
 
     init {
@@ -102,40 +122,39 @@ class BannerView @JvmOverloads constructor(
     }
 
     private fun init(attrs: AttributeSet?, defStyle: Int) {
-
         val a = context.obtainStyledAttributes(
             attrs, R.styleable.BannerView, defStyle, 0
         )
+        interval = a.getInt(R.styleable.BannerView_interval, defaultInterval).toLong()
+        direction = a.getInt(R.styleable.BannerView_direction, LEFT)
         a.recycle()
         addView(viewPager)
-        viewPager.adapter = adapter
-        viewPager.viewTreeObserver.addOnGlobalLayoutListener {
-            viewPager.setCurrentItem(adapter.itemCount / 2, false)
-        }
     }
-
 
     @Synchronized
     private fun start() {
         removeCallbacks(runnable)
         postDelayed(runnable, interval)
+        isRunning = true
     }
 
     private fun next() {
-        val totalCount = adapter.itemCount
-        var currentItem = viewPager.currentItem
-        if (totalCount > 1) {
-            val nextItem =
-                if (direction == LEFT) --currentItem else ++currentItem
-            when {
-                nextItem < 0 -> {
-                    viewPager.setCurrentItem(totalCount - 1, false)
-                }
-                nextItem >= totalCount -> {
-                    viewPager.setCurrentItem(0, false)
-                }
-                else -> {
-                    viewPager.setCurrentItem(nextItem, true)
+        adapter?.let {
+            val totalCount = it.itemCount
+            if (totalCount > 1) {
+                var currentItem = viewPager.currentItem
+                val nextItem =
+                    if (direction == RIGHT) --currentItem else ++currentItem
+                when {
+                    nextItem < 0 -> {
+                        viewPager.setCurrentItem(totalCount - 1, false)
+                    }
+                    nextItem >= totalCount -> {
+                        viewPager.setCurrentItem(0, false)
+                    }
+                    else -> {
+                        viewPager.setCurrentItem(nextItem, true)
+                    }
                 }
             }
         }
@@ -143,34 +162,45 @@ class BannerView @JvmOverloads constructor(
 
     private fun stop() {
         removeCallbacks(runnable)
+        isRunning = false
     }
 
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
+        adapter?.unregisterAdapterDataObserver(adapterDataObserver)
         onPause()
-        banners.clear()
     }
 
     @OnLifecycleEvent(Lifecycle.Event.ON_START)
-    fun onStart() {
+    private fun onStart() {
         start()
     }
 
-
     @OnLifecycleEvent(Lifecycle.Event.ON_PAUSE)
-    fun onPause() {
+    private fun onPause() {
         stop()
     }
 
     @OnLifecycleEvent(Lifecycle.Event.ON_DESTROY)
-    fun onDestroy() {
+    private fun onDestroy() {
         lifecycle?.removeObserver(this)
     }
 
-    class BannerHolder(itemView: View) : RecyclerView.ViewHolder(itemView)
+    fun addIndicator(indicator: Indicator) {
+        indicators.add(indicator)
+    }
+
+    fun removeIndicator(indicator: Indicator) {
+        indicators.remove(indicator)
+    }
+
+    fun removeAllIndicator() {
+        indicators.clear()
+    }
 
     companion object {
         const val LEFT = 0
         const val RIGHT = 1
     }
+
 }

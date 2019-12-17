@@ -1,11 +1,16 @@
 <resources>
     <declare-styleable name="BannerView">
         <attr name="interval" format="integer" />
-        <attr name="slideBorderMode" format="integer">
-            <enum name="none" value="0" />
-            <enum name="cycle" value="1" />
-            <enum name="parent" value="2" />
+        <attr name="direction" format="integer">
+            <enum name="left" value="0" />
+            <enum name="right" value="1" />
         </attr>
-        <attr name="isBorderAnimation" format="boolean" />
+    </declare-styleable>
+
+    <declare-styleable name="BannerIndicator">
+        <attr name="indicatorItemWidth" format="dimension" />
+        <attr name="indicatorItemHeight" format="dimension" />
+        <attr name="indicatorItemMargin" format="dimension" />
+        <attr name="indicatorItemBackground" format="reference" />
     </declare-styleable>
 </resources>
