@@ -1,9 +1,14 @@
 <resources>
     <declare-styleable name="BannerView">
         <attr name="interval" format="integer" />
+        <attr name="userInputEnabled" format="boolean" />
         <attr name="direction" format="integer">
             <enum name="left" value="0" />
             <enum name="right" value="1" />
+        </attr>
+        <attr name="orientation" format="integer">
+            <enum name="horizontal" value="0" />
+            <enum name="vertical" value="1" />
         </attr>
     </declare-styleable>
 

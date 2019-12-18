@@ -3,6 +3,7 @@ package com.liang.bannerkt
 import android.os.Build
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.widget.TextSwitcher
 import androidx.annotation.RequiresApi
 import com.liang.banner.Indicator
 import kotlinx.android.synthetic.main.activity_main.*
@@ -20,5 +21,6 @@ class MainActivity : AppCompatActivity() {
         bannerView.addIndicator(bannerIndicator)
         bannerView.adapter = adapter
         adapter.submit(arrayListOf("001","002","003","004","005","006","007"))
+
     }
 }

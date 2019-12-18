@@ -3,6 +3,8 @@ package com.liang.banner
 import android.content.Context
 import android.os.Build
 import android.util.AttributeSet
+import android.util.Log
+import android.view.View
 import android.view.ViewTreeObserver
 import android.widget.FrameLayout
 import androidx.annotation.RequiresApi
@@ -13,6 +15,7 @@ import androidx.lifecycle.OnLifecycleEvent
 import androidx.recyclerview.widget.RecyclerView
 import androidx.viewpager2.widget.ViewPager2
 import com.liang.banner.adapter.BannerAdapter
+import kotlin.math.abs
 
 /**
  * BannerView
@@ -33,8 +36,34 @@ class BannerView @JvmOverloads constructor(
     private var lifecycle: Lifecycle? = null
     private var direction = 0
 
+    var orientation = ORIENTATION_HORIZONTAL
+        set(value) {
+            if (value != field) {
+                field = value
+                viewPager.orientation = value
+            }
+        }
     var interval = 0L
+
     var isRunning = false
+        private set
+    var userInputEnabled = true
+        set(value) {
+            if (value != field) {
+                field = value
+                viewPager.isUserInputEnabled = value
+            }
+        }
+
+    var pageTransformer: PageTransformer? = null
+        set(value) {
+            if (value != null) {
+                field = value.apply {
+                    orientation = this@BannerView.orientation
+                }
+                viewPager.setPageTransformer(field)
+            }
+        }
 
     var adapter: BannerAdapter<*, *>? = null
         set(value) {
@@ -51,8 +80,12 @@ class BannerView @JvmOverloads constructor(
         object : RecyclerView.AdapterDataObserver() {
             override fun onChanged() {
                 adapter?.let {
+                    viewPager.setCurrentItem(it.itemCount / 2, false)
                     indicators.forEach { indicator ->
                         indicator.initCount(it.getBannerCount())
+                        if (it.getBannerCount() > 0) {
+                            indicator.onPageSelected((it.itemCount / 2) % it.getBannerCount())
+                        }
                     }
                 }
             }
@@ -62,6 +95,12 @@ class BannerView @JvmOverloads constructor(
     override fun onGlobalLayout() {
         adapter?.let {
             viewPager.setCurrentItem(it.itemCount / 2, false)
+            indicators.forEach { indicator ->
+                indicator.initCount(it.getBannerCount())
+                if (it.getBannerCount() > 0) {
+                    indicator.onPageSelected((it.itemCount / 2) % it.getBannerCount())
+                }
+            }
         }
         viewPager.viewTreeObserver.removeOnGlobalLayoutListener(this)
     }
@@ -127,8 +166,12 @@ class BannerView @JvmOverloads constructor(
         )
         interval = a.getInt(R.styleable.BannerView_interval, defaultInterval).toLong()
         direction = a.getInt(R.styleable.BannerView_direction, LEFT)
+        orientation = a.getInt(R.styleable.BannerView_orientation, ORIENTATION_HORIZONTAL)
+        userInputEnabled = a.getBoolean(R.styleable.BannerView_userInputEnabled, true)
         a.recycle()
         addView(viewPager)
+//        pageTransformer = ScaleTransformer(orientation = orientation)
+//        pageTransformer = RotationTransformer(orientation = orientation)
     }
 
     @Synchronized
@@ -201,6 +244,9 @@ class BannerView @JvmOverloads constructor(
     companion object {
         const val LEFT = 0
         const val RIGHT = 1
+        const val ORIENTATION_HORIZONTAL = ViewPager2.ORIENTATION_HORIZONTAL
+        const val ORIENTATION_VERTICAL = ViewPager2.ORIENTATION_VERTICAL
     }
 
+    abstract class PageTransformer(var orientation: Int) : ViewPager2.PageTransformer
 }
